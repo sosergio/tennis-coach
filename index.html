@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tennis Coach</title>
+<meta name="description" content="Diario delle partite, punteggio game per game e tips di tecnica e tattica">
+<meta name="theme-color" content="#0c2c47">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tennis Coach">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,700&display=swap">
+<style>
+/* Struttura da app: barra in alto fissa (trasparente sull'hero, piena allo scroll),
+   tab bar in basso, "Nuova partita" in un foglio a tutto schermo che sale dal basso. */
+:root{
+  --bg:#f2f5f7; --surface:#ffffff; --surface-2:#eef2f5; --ink:#13212c; --muted:#5d6d7a; --line:#dbe3e9;
+  --court:#1d5a85; --court-deep:#0c2c47; --court-mid:#1f6596; --ball:#c9e43a; --ball-ink:#13212c;
+  --frus:#c8462f; --happy:#2e8b57; --calm:#1d5a85;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif;
+  --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
+  --bar-h:48px; --tab-h:58px; --radius:14px;
+  --shadow:0 1px 2px rgba(12,44,71,.06),0 4px 14px rgba(12,44,71,.06);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b1218; --surface:#151f28; --surface-2:#1c2833; --ink:#e6edf2; --muted:#93a4b1; --line:#263542;
+  --court:#6fb0e0; --frus:#ec7a63; --happy:#5fc08a; --calm:#6fb0e0;
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1218; --surface:#151f28; --surface-2:#1c2833; --ink:#e6edf2; --muted:#93a4b1; --line:#263542;
+  --court:#6fb0e0; --frus:#ec7a63; --happy:#5fc08a; --calm:#6fb0e0;
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%;background:var(--court-deep)}
+html.locked,html.locked body{overflow:hidden}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
+h1,h2,h3{margin:0;font-family:var(--display);letter-spacing:.01em;text-wrap:balance}
+a{color:var(--court)}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--court);outline-offset:2px}
+
+/* ---------- Barra in alto ---------- */
+.appbar{position:fixed;top:0;left:0;right:0;z-index:30;padding-top:var(--safe-top);transition:background .25s ease,box-shadow .25s ease}
+.appbar .inner{height:var(--bar-h);display:flex;align-items:center;justify-content:center;max-width:720px;margin:0 auto;padding:0 16px}
+.appbar .title{font-family:var(--display);font-weight:700;font-size:1.2rem;color:#fff;letter-spacing:.03em;opacity:0;transform:translateY(4px);transition:opacity .2s ease,transform .2s ease}
+.appbar.solid{background:rgba(12,44,71,.92);-webkit-backdrop-filter:saturate(1.6) blur(16px);backdrop-filter:saturate(1.6) blur(16px);box-shadow:0 1px 0 rgba(255,255,255,.06)}
+.appbar.solid .title{opacity:1;transform:none}
+
+/* ---------- Hero ---------- */
+.hero{position:relative;overflow:hidden;color:#fff;background:linear-gradient(160deg,var(--court-mid) 0%,var(--court-deep) 78%);
+  padding:calc(var(--safe-top) + var(--bar-h) + 8px) 20px 22px}
+.hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(90deg,transparent calc(50% - 1px),rgba(255,255,255,.07) calc(50% - 1px),rgba(255,255,255,.07) calc(50% + 1px),transparent calc(50% + 1px)) 0 62%/100% 38% no-repeat,
+    linear-gradient(rgba(255,255,255,.07),rgba(255,255,255,.07)) 0 62%/100% 2px no-repeat}
+.hero::after{content:"";position:absolute;width:220px;height:220px;right:-70px;top:calc(var(--safe-top) + 10px);border-radius:50%;
+  background:radial-gradient(circle at 38% 34%,#e2f76a,var(--ball) 65%,#9fbb1f);opacity:.13;pointer-events:none}
+.hero>*{position:relative;z-index:1;max-width:680px;margin-left:auto;margin-right:auto}
+.eyebrow{font-size:.7rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ball);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.eyebrow::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--ball)}
+.hero h1{font-size:2.6rem;line-height:.95;font-weight:700;text-transform:uppercase}
+.hero h1 em{font-style:italic;color:var(--ball)}
+.hero .sub{margin:10px 0 0;color:rgba(255,255,255,.78);font-size:.95rem;max-width:44ch}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:20px}
+.stat{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:9px 8px 8px;min-width:0}
+.stat b{display:block;font-family:var(--display);font-size:1.55rem;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.stat span{display:block;font-size:.62rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:rgba(255,255,255,.65);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- Contenuto ---------- */
+main{padding-bottom:calc(var(--tab-h) + var(--safe-bottom) + 92px)}
+.view{display:block}
+.content{max-width:720px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-left,0px)) 0 max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px}
+.section-h{display:flex;justify-content:space-between;align-items:baseline;margin:10px 4px 0}
+.section-h h2{font-size:1.45rem}
+.section-h small{color:var(--muted);font-size:.85rem}
+.label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.banner{background:color-mix(in srgb,var(--frus) 12%,var(--surface));color:var(--ink);border:1px solid color-mix(in srgb,var(--frus) 40%,transparent);border-radius:12px;padding:10px 14px;font-size:.9rem}
+.empty{color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:var(--radius);padding:28px 20px;text-align:center}
+
+/* ---------- Partite ---------- */
+.list{display:flex;flex-direction:column;gap:10px}
+.entry{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.entry>summary{list-style:none;display:flex;align-items:center;gap:12px;padding:14px;cursor:pointer;-webkit-user-select:none;user-select:none}
+.entry>summary::-webkit-details-marker{display:none}
+.entry>summary:active{background:var(--surface-2)}
+.badge{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:1.25rem;color:#fff;background:var(--muted)}
+.badge.w{background:var(--happy)} .badge.l{background:var(--frus)}
+.who{flex:1;min-width:0;display:flex;flex-direction:column}
+.who b{font-size:1.02rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who span{font-size:.8rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res{flex:none;font-family:var(--display);font-weight:700;font-size:1.3rem;font-variant-numeric:tabular-nums}
+.chev{flex:none;width:18px;height:18px;color:var(--muted);transition:transform .2s ease}
+.entry[open] .chev{transform:rotate(90deg)}
+.entry-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--line);padding-top:14px}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{display:inline-block;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted)}
+.pill.w{color:var(--happy)} .pill.l{color:var(--frus)} .pill.p{color:var(--court)}
+.meters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.meter .label{font-size:.64rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meter b{font-family:var(--display);font-size:1.3rem;font-variant-numeric:tabular-nums;color:var(--ink)}
+.meter .bar{height:5px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:3px}
+.meter .bar i{display:block;height:100%;border-radius:3px}
+dl{margin:0;display:flex;flex-direction:column;gap:12px}
+dt{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+dd{margin:2px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.entry-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line);padding-top:12px}
+.btn{border:0;border-radius:10px;padding:10px 16px;min-height:42px;background:var(--surface-2);color:var(--ink);font-weight:600}
+.btn:active{transform:scale(.97);opacity:.85}
+.btn.primary{background:var(--court);color:#fff}
+.btn.danger{background:color-mix(in srgb,var(--frus) 14%,var(--surface));color:var(--frus)}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.9rem}
+
+/* ---------- Game per game ---------- */
+.gs{display:flex;flex-direction:column;gap:6px}
+.gs-row{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.gs-set{font-size:.72rem;color:var(--muted);font-weight:700;min-width:3.2em}
+.g{display:inline-flex;align-items:center;justify-content:center;min-width:2.2em;height:1.9em;padding:0 3px;border-radius:6px;font-size:.75rem;font-weight:700;font-variant-numeric:tabular-nums;color:#fff}
+.g.w{background:var(--happy)} .g.l{background:var(--frus)}
+.gs-note{font-size:.85rem;color:var(--muted)}
+
+/* ---------- Tips ---------- */
+.rule{margin:0;font-family:var(--display);font-weight:700;font-size:1.35rem;text-transform:uppercase;background:var(--ball);color:var(--ball-ink);padding:12px 16px;border-radius:var(--radius)}
+.tip{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+.tip h3{font-size:1.3rem}
+.tip p{margin:6px 0 0}
+.tip.star{box-shadow:inset 4px 0 0 var(--ball),var(--shadow)}
+.tip .tag{display:inline-block;font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--court);margin-bottom:4px}
+.tipgroup{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.tipgroup>summary{list-style:none;cursor:pointer;padding:15px 16px;font-family:var(--display);font-weight:700;font-size:1.3rem;display:flex;justify-content:space-between;align-items:center;-webkit-user-select:none;user-select:none}
+.tipgroup>summary::-webkit-details-marker{display:none}
+.tipgroup>summary:active{background:var(--surface-2)}
+.tipgroup[open] .chev{transform:rotate(90deg)}
+.tipgroup ul,.tipgroup ol{margin:0;padding:0 16px 16px 34px;display:flex;flex-direction:column;gap:9px}
+.tipgroup .small,.tipgroup .cues{padding:0 16px 16px}
+.cues{display:flex;flex-direction:column;gap:10px}
+.cues div{display:grid;grid-template-columns:minmax(0,8.5em) minmax(0,1fr);gap:10px}
+.cues dt{font-size:.75rem;padding-top:2px}
+.small{font-size:.92rem;color:var(--muted);margin:0}
+.tipgroup .chain{color:var(--ink);font-size:.98rem}
+
+/* ---------- Liste stile impostazioni (Altro) ---------- */
+.cell-group{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.cell{display:flex;align-items:center;gap:12px;width:100%;padding:13px 16px;min-height:52px;background:none;border:0;text-align:left;text-decoration:none;color:var(--ink);font-size:1rem}
+.cell+.cell{border-top:1px solid var(--line)}
+.cell:active{background:var(--surface-2)}
+.cell .ic{flex:none;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:#fff;background:var(--court)}
+.cell .ic svg{width:18px;height:18px}
+.cell .tx{flex:1;min-width:0;display:flex;flex-direction:column}
+.cell .tx small{color:var(--muted);font-size:.8rem}
+.cell .chev{width:16px;height:16px}
+.note{color:var(--muted);font-size:.85rem;margin:0 4px}
+.version{text-align:center;color:var(--muted);font-size:.75rem;margin-top:8px}
+
+/* ---------- Tab bar ---------- */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;padding-bottom:var(--safe-bottom);
+  background:color-mix(in srgb,var(--surface) 88%,transparent);-webkit-backdrop-filter:saturate(1.8) blur(18px);backdrop-filter:saturate(1.8) blur(18px);border-top:1px solid var(--line)}
+.tabbar .inner{height:var(--tab-h);display:grid;grid-template-columns:repeat(3,1fr);max-width:520px;margin:0 auto}
+.tabbar button{border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--muted);font-size:.68rem;font-weight:600;letter-spacing:.02em}
+.tabbar button svg{width:24px;height:24px}
+.tabbar button[aria-selected="true"]{color:var(--court)}
+.tabbar button:active svg{transform:scale(.9)}
+
+.fab{position:fixed;z-index:25;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--tab-h) + var(--safe-bottom) + 14px);
+  display:flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:0 20px 0 16px;height:52px;
+  background:var(--ball);color:var(--ball-ink);font-weight:700;font-size:1rem;box-shadow:0 6px 18px rgba(12,44,71,.28),0 2px 4px rgba(12,44,71,.18);transition:transform .15s ease}
+.fab svg{width:22px;height:22px}
+.fab:active{transform:scale(.95)}
+
+/* ---------- Foglio "Nuova partita" ---------- */
+.sheet{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;
+  transform:translateY(100%);visibility:hidden;transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s linear .32s}
+.sheet.open{transform:none;visibility:visible;transition:transform .32s cubic-bezier(.2,.8,.2,1)}
+.sheet-bar{flex:none;padding-top:var(--safe-top);background:var(--court-deep);color:#fff}
+.sheet-bar .inner{height:52px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;max-width:720px;margin:0 auto;padding:0 6px}
+.sheet-bar h2{font-size:1.25rem;letter-spacing:.03em;text-align:center}
+.sheet-bar button{border:0;background:none;color:#fff;padding:10px 12px;min-height:44px;font-size:1rem}
+.sheet-bar .save{justify-self:end;color:var(--ball);font-weight:700}
+.sheet-bar .cancel{justify-self:start;opacity:.85}
+.sheet-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+form{max-width:720px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-left,0px)) calc(32px + var(--safe-bottom)) max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:8px}
+.fgroup-h{margin:14px 4px 6px;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;display:flex;justify-content:space-between}
+.fgroup-h:first-child{margin-top:0}
+.fgroup-h .opt{text-transform:none;letter-spacing:0;font-weight:500}
+.fgroup{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:4px 16px}
+.field{display:flex;flex-direction:column;gap:6px;padding:12px 0;min-width:0}
+/* separatore tra le righe di un gruppo (box-shadow, perché un bordo su fieldset taglia la legend) */
+.fgroup>*+*{box-shadow:inset 0 1px 0 var(--line)}
+.field>.label{font-size:.78rem;text-transform:none;letter-spacing:0;font-weight:600}
+.field-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+input[type=text],input[type=date],select,textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--surface-2);border:1px solid transparent;border-radius:10px;padding:10px 12px;width:100%;min-height:44px;-webkit-appearance:none;appearance:none}
+input[type=date]{display:block}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235d6d7a' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;background-size:18px;padding-right:34px}
+textarea{min-height:76px;resize:vertical;line-height:1.4}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--court);background:var(--surface)}
+fieldset{border:0;padding:12px 0;margin:0;display:flex;flex-direction:column;gap:8px;min-width:0}
+fieldset legend{float:left;width:100%;padding:0;margin-bottom:8px;font-size:.78rem;font-weight:600;color:var(--muted)}
+.seg{clear:both;display:flex;background:var(--surface-2);border-radius:10px;padding:3px;gap:2px}
+.seg label{flex:1;position:relative}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:flex;align-items:center;justify-content:center;min-height:38px;border-radius:8px;font-weight:600;font-size:.95rem;color:var(--muted);cursor:pointer;transition:background .15s ease,color .15s ease}
+.seg input:checked+span{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(12,44,71,.18)}
+.seg input#f-esito-v:checked+span{background:var(--happy);color:#fff}
+.seg input#f-esito-p:checked+span{background:var(--frus);color:#fff}
+.seg input:focus-visible+span{outline:2px solid var(--court);outline-offset:1px}
+.scale{display:flex;flex-direction:column;gap:4px;padding:12px 0}
+.scale .top{display:flex;justify-content:space-between;align-items:baseline}
+.scale .top span{font-weight:600;font-size:.95rem}
+.scale output{font-family:var(--display);font-weight:700;font-size:1.6rem;line-height:1;font-variant-numeric:tabular-nums}
+.scale small{color:var(--muted);display:flex;justify-content:space-between;gap:12px;font-size:.78rem}
+.scale small span:last-child{text-align:right}
+input[type=range]{width:100%;height:32px;margin:0}
+#f-frus{accent-color:var(--frus)} #f-felic{accent-color:var(--happy)} #f-calma{accent-color:var(--calm)}
+.form-save{margin-top:18px;width:100%;min-height:52px;font-size:1.05rem}
+
+.gt{display:flex;flex-direction:column;gap:12px;padding:12px 0}
+.gt-score{font-family:var(--display);font-weight:700;font-size:1.8rem;font-variant-numeric:tabular-nums;line-height:1}
+.gt-step{display:flex;flex-direction:column;gap:8px}
+.gt-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gt-btns.gt-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.gt-btns button{border:1.5px solid var(--line);border-radius:10px;min-height:50px;padding:6px 4px;font-weight:700;background:var(--surface)}
+.gt-btns button:active{transform:scale(.96)}
+.gt-btns .gt-me{border-color:var(--happy);color:var(--happy)}
+.gt-btns .gt-opp{border-color:var(--frus);color:var(--frus)}
+.gt-tools{display:flex;gap:8px}
+.gt-tools .btn{flex:1;min-height:38px;padding:6px 10px;font-size:.9rem}
+
+/* ---------- Toast ---------- */
+.toast{position:fixed;left:50%;z-index:60;bottom:calc(var(--tab-h) + var(--safe-bottom) + 80px);transform:translate(-50%,12px);opacity:0;pointer-events:none;
+  background:var(--court-deep);color:#fff;padding:11px 18px;border-radius:999px;font-size:.92rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:calc(100% - 32px);text-align:center;transition:opacity .2s ease,transform .2s ease}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+html.locked .toast{bottom:calc(var(--safe-bottom) + 24px)}
+
+@media (min-width:600px){.hero h1{font-size:3.2rem}.hero{padding-left:32px;padding-right:32px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<header class="appbar" id="appbar"><div class="inner"><span class="title" id="appbar-title">Diario</span></div></header>
+
+<main>
+<!-- ======================= DIARIO ======================= -->
+<section id="v-diario" class="view" data-title="Diario">
+  <header class="hero">
+    <div class="eyebrow">Tennis Coach</div>
+    <h1>Play like a<br><em>champion</em> today</h1>
+    <p class="sub">Compilalo a fine partita, anche a caldo: 3 minuti. Conta come cambiano testa e piano di gioco, più del risultato.</p>
+    <div class="stats" aria-label="Riepilogo">
+      <div class="stat"><b id="s-n">–</b><span>Partite</span></div>
+      <div class="stat" title="Frustrazione media"><b id="s-frus">–</b><span>Frustr.</span></div>
+      <div class="stat" title="Calma media"><b id="s-calma">–</b><span>Calma</span></div>
+      <div class="stat" title="Partite giocate con un piano"><b id="s-piano">–</b><span>Piano</span></div>
+    </div>
+  </header>
+  <div class="content">
+    <p class="banner" id="list-status" role="status" hidden></p>
+    <div class="section-h"><h2>Partite</h2><small id="list-count"></small></div>
+    <div class="list" id="list"></div>
+  </div>
+</section>
+
+<!-- ======================= TIPS ======================= -->
+<section id="v-tips" class="view" data-title="Tips" hidden>
+  <header class="hero">
+    <div class="eyebrow">Tecnica e tattica</div>
+    <h1>Tips</h1>
+    <p class="sub">Da rileggere prima di entrare in campo.</p>
+  </header>
+  <div class="content">
+    <p class="rule">Margine prima, potenza dopo.</p>
+    <article class="tip star"><span class="tag">Priorità</span><h3>Zona d'impatto: all'altezza del petto</h3><p>Colpisci sempre tra vita e petto. Sono i piedi che ti portano lì: palla lenta e corta, entra e prendila alta; palla alta e profonda, passo indietro o anticipa in salita. Mai aspettare che scenda alle ginocchia.</p></article>
+    <article class="tip star"><span class="tag">Priorità</span><h3>Costanza: profondo e al centro</h3><p>Il punto lo vince chi sbaglia meno. Palla profonda, verso il centro del campo, con margine sopra la rete e dentro le righe. Profondità prima degli angoli: l'angolo arriva quando l'avversario ti dà una palla corta.</p></article>
+    <article class="tip"><h3>Prima dei punti importanti</h3><p>A 30-30, 40-30 e palle break: decidi prima del punto cosa fai, respira, poi colpo con margine. (Dal diario del 2 novembre.)</p></article>
+    <details class="tipgroup" open><summary>Colpi da fondo<svg class="chev"><use href="#i-chev"/></svg></summary>
+      <ul>
+        <li><b>Spazzola la palla</b> verso l'alto e di lato, non spingerla avanti: la rotazione la fa scendere e ti dà margine.</li>
+        <li><b>Bersaglio</b> 1–1,5 m sopra la rete, con topspin. Diagonale come colpo standard, lungolinea solo su palla facile.</li>
+        <li><b>Diritto a C:</b> la C fa prendere velocità e porta il piatto in basso, tappo in alto, prima dell'impatto.</li>
+        <li><b>Testa ferma</b> fino all'impatto e un istante dopo.</li>
+        <li><b>Footwork:</b> tanti piccoli passi per arrivare dove rimbalza la palla.</li>
+        <li><b>Niente salto prima</b> dell'impatto: stabile quando colpisci, staccarti dopo va bene.</li>
+      </ul>
+    </details>
+    <details class="tipgroup"><summary>Servizio: le 3 correzioni<svg class="chev"><use href="#i-chev"/></svg></summary>
+      <p class="small chain"><b>Catena cinetica:</b> Il servizio è una progressione della rotazione: il piede spinge a terra, poi gamba, anca, busto, spalle e infine braccio. Ogni anello parte quando il precedente ha spinto. Il racket drop non si fa apposta: succede perché un corpo ben rilassato si avvita, e la racchetta cade dietro la schiena da sola.</p>
+      <ol>
+        <li><b>Tira la corda:</b> braccio sinistro giù piegato contro il fianco, non aperto di lato.</li>
+        <li><b>Spalle inclinate:</b> in carica sinistra alta; all'impatto si invertono, spalla sopra spalla.</li>
+        <li><b>Dondolio avanti, indietro, avanti:</b> parti col peso sul piede davanti.</li>
+      </ol>
+      <p class="small">Già a posto: lancio dritto e alto, punta su in carica, impatto a braccio teso, testa su.</p>
+    </details>
+    <details class="tipgroup"><summary>Servizio: parole chiave<svg class="chev"><use href="#i-chev"/></svg></summary>
+      <dl class="cues">
+        <div><dt>Impugnatura</dt><dd>Martello (continental)</dd></div>
+        <div><dt>Partenza</dt><dd>Avanti, peso sul piede davanti</dd></div>
+        <div><dt>Dondolio</dt><dd>Uno-due-tre</dd></div>
+        <div><dt>Lancio</dt><dd>Bicchiere d'acqua, 20–40 cm davanti al piede sinistro</dd></div>
+        <div><dt>Carica</dt><dd>Mostra la schiena</dd></div>
+        <div><dt>Caduta</dt><dd>Elastico</dd></div>
+        <div><dt>Verso l'impatto</dt><dd>Tira la corda</dd></div>
+        <div><dt>Impatto</dt><dd>Guarda il punto</dd></div>
+        <div><dt>Chiusura</dt><dd>Freni</dd></div>
+      </dl>
+      <p class="small">Servizio base per prima e seconda: <b>slice-topspin</b> al 75–80%. Obiettivo 65–70% di prime, al rovescio o addosso.</p>
+    </details>
+    <details class="tipgroup"><summary>Tattica<svg class="chev"><use href="#i-chev"/></svg></summary>
+      <dl class="cues">
+        <div><dt>Risposta</dt><dd>Profonda al centro, addosso. Su seconda debole: aggressivo sul rovescio.</dd></div>
+        <div><dt>A rete, palla alta</dt><dd>Corta e angolata, chiudi.</dd></div>
+        <div><dt>A rete, palla bassa</dt><dd>Profonda e centrale, poi avanza.</dd></div>
+        <div><dt>Avversario a rete</dt><dd>Bassa sui piedi; ogni tanto pallonetto.</dd></div>
+        <div><dt>Contro il pallettaro</dt><dd>Non regalare ritmo: carica tu la palla con margine, sulle corte entra e vai a rete.</dd></div>
+      </dl>
+    </details>
+    <p class="note"><a href="https://claude.ai/artifact/PRc2xhpKj51Pf6H1xjyotV" target="_blank" rel="noopener">Cheat sheet completo</a> con esercizi, pronazione e video.</p>
+  </div>
+</section>
+
+<!-- ======================= ALTRO ======================= -->
+<section id="v-altro" class="view" data-title="Altro" hidden>
+  <header class="hero">
+    <div class="eyebrow">Impostazioni</div>
+    <h1>Altro</h1>
+    <p class="sub">I dati si salvano solo su questo telefono. Ogni tanto fai un backup.</p>
+  </header>
+  <div class="content">
+    <div class="section-h"><h2>Backup</h2></div>
+    <div class="cell-group">
+      <button type="button" class="cell" id="b-export">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg></span>
+        <span class="tx">Esporta backup<small>File JSON da salvare o condividere</small></span>
+        <svg class="chev"><use href="#i-chev"/></svg>
+      </button>
+      <button type="button" class="cell" id="b-import">
+        <span class="ic" style="background:var(--happy)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg></span>
+        <span class="tx">Importa backup<small>Unisce le partite del file a quelle presenti</small></span>
+        <svg class="chev"><use href="#i-chev"/></svg>
+      </button>
+      <input type="file" id="f-importfile" accept="application/json,.json" hidden>
+    </div>
+
+    <div class="section-h"><h2>Risorse</h2></div>
+    <div class="cell-group">
+      <a class="cell" href="https://claude.ai/artifact/PRc2xhpKj51Pf6H1xjyotV" target="_blank" rel="noopener">
+        <span class="ic" style="background:var(--ball);color:var(--ball-ink)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M8 12h8M8 16h5"/></svg></span>
+        <span class="tx">Cheat sheet servizio e tattica<small>Esercizi, pronazione e video</small></span>
+        <svg class="chev"><use href="#i-chev"/></svg>
+      </a>
+      <a class="cell" href="https://claude.ai/artifact/AEJG66oveqkaidHJAgrn6L" target="_blank" rel="noopener">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2"/><path d="M18 2v4h-4M6 22v-4h4"/></svg></span>
+        <span class="tx">Diario online<small>Versione sincronizzata</small></span>
+        <svg class="chev"><use href="#i-chev"/></svg>
+      </a>
+    </div>
+
+    <div class="section-h"><h2>Installa sul telefono</h2></div>
+    <p class="note"><b>iPhone:</b> apri in Safari, tocca Condividi e poi <i>Aggiungi alla schermata Home</i>.<br><b>Android:</b> apri in Chrome, menu ⋮ e poi <i>Installa app</i>. Funziona anche offline.</p>
+    <p class="version">Tennis Coach · v1</p>
+  </div>
+</section>
+</main>
+
+<button type="button" class="fab" id="b-new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nuova partita</button>
+
+<nav class="tabbar" role="tablist" aria-label="Sezioni"><div class="inner">
+  <button type="button" role="tab" data-v="diario" aria-selected="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M8 3v18M11.5 8H16M11.5 12H16"/></svg>Diario</button>
+  <button type="button" role="tab" data-v="tips" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6c3.2 3 3.2 9.8 0 12.8M18.4 5.6c-3.2 3-3.2 9.8 0 12.8"/></svg>Tips</button>
+  <button type="button" role="tab" data-v="altro" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="7.5" cy="12" r=".9" fill="currentColor"/><circle cx="12" cy="12" r=".9" fill="currentColor"/><circle cx="16.5" cy="12" r=".9" fill="currentColor"/></svg>Altro</button>
+</div></nav>
+
+<!-- ======================= FOGLIO NUOVA PARTITA ======================= -->
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="form-title" inert>
+  <div class="sheet-bar"><div class="inner">
+    <button type="button" class="cancel" id="b-cancel">Annulla</button>
+    <h2 id="form-title">Nuova partita</h2>
+    <button type="submit" class="save" form="f">Salva</button>
+  </div></div>
+  <div class="sheet-body" id="sheet-body">
+    <form id="f" novalidate>
+      <div class="fgroup-h">Partita</div>
+      <div class="fgroup">
+        <div class="field-row">
+          <label class="field"><span class="label">Data</span><input type="date" id="f-data" required></label>
+          <label class="field"><span class="label">Risultato</span><input type="text" id="f-ris" placeholder="es. 6-4 3-6" autocomplete="off"></label>
+        </div>
+        <label class="field"><span class="label">Avversario</span><input type="text" id="f-avv" placeholder="Nome o tipo di giocatore" autocomplete="off"></label>
+        <label class="field"><span class="label">Tipo</span>
+          <select id="f-tipo"><option>Campionato GameSet</option><option>Amichevole</option><option>Torneo</option><option>Allenamento a punti</option></select></label>
+        <fieldset><legend>Esito</legend>
+          <div class="seg">
+            <label><input type="radio" name="esito" id="f-esito-v" value="vinta"><span>Vinta</span></label>
+            <label><input type="radio" name="esito" id="f-esito-p" value="persa"><span>Persa</span></label>
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="fgroup-h">Punteggio game per game <span class="opt">facoltativo</span></div>
+      <div class="fgroup" id="gamebox">
+        <div class="gt">
+          <div class="gt-score" id="gt-score" aria-live="polite">Nessun game</div>
+          <div class="gt-step" id="gt-step1">
+            <span class="label">Chi ha vinto il game?</span>
+            <div class="gt-btns"><button type="button" class="gt-me" data-w="1">Io</button><button type="button" class="gt-opp" data-w="0">Avversario</button></div>
+          </div>
+          <div class="gt-step" id="gt-step2" hidden>
+            <span class="label" id="gt-q">Com'è finito?</span>
+            <div class="gt-btns gt-4"><button type="button" data-s="0">a 0</button><button type="button" data-s="15">a 15</button><button type="button" data-s="30">a 30</button><button type="button" data-s="V">vantaggi</button></div>
+          </div>
+          <div id="gt-strip"></div>
+          <div class="gt-tools"><button type="button" class="btn" id="gt-undo">Annulla ultimo</button><button type="button" class="btn" id="gt-set">Nuovo set</button></div>
+        </div>
+      </div>
+
+      <div class="fgroup-h">Come mi sono sentito <span class="opt">1–10</span></div>
+      <div class="fgroup">
+        <div class="scale"><div class="top"><span>Frustrazione</span><output id="o-frus">5</output></div>
+          <input type="range" id="f-frus" min="1" max="10" value="5"><small><span>zero</span><span>racchetta a terra</span></small></div>
+        <div class="scale"><div class="top"><span>Felicità</span><output id="o-felic">5</output></div>
+          <input type="range" id="f-felic" min="1" max="10" value="5"><small><span>mi sono annoiato/arrabbiato</span><span>mi sono divertito</span></small></div>
+        <div class="scale"><div class="top"><span>Calma</span><output id="o-calma">5</output></div>
+          <input type="range" id="f-calma" min="1" max="10" value="5"><small><span>agitato, braccio rigido</span><span>lucido, respiro tranquillo</span></small></div>
+      </div>
+
+      <div class="fgroup-h">Piano di gioco</div>
+      <div class="fgroup">
+        <fieldset><legend>Avevo un piano?</legend>
+          <div class="seg">
+            <label><input type="radio" name="piano" id="f-piano-si" value="si"><span>Sì</span></label>
+            <label><input type="radio" name="piano" id="f-piano-no" value="no"><span>No</span></label>
+          </div>
+        </fieldset>
+        <label class="field"><span class="label">Quale piano (o cosa avrei dovuto fare)</span><textarea id="f-pianotxt" placeholder="es. palla carica sul rovescio, salire a rete sulle palle corte"></textarea></label>
+        <fieldset><legend>L'ho seguito?</legend>
+          <div class="seg">
+            <label><input type="radio" name="seguito" id="f-seg-si" value="sì"><span>Sì</span></label>
+            <label><input type="radio" name="seguito" id="f-seg-parz" value="in parte"><span>In parte</span></label>
+            <label><input type="radio" name="seguito" id="f-seg-no" value="no"><span>No</span></label>
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="fgroup-h">Punti decisivi</div>
+      <div class="fgroup">
+        <label class="field"><span class="label">Come ho giocato i punti importanti (30-30, 40-30, palle break)?</span><textarea id="f-punti"></textarea></label>
+        <label class="field"><span class="label">Il momento in cui è cambiata la partita</span><textarea id="f-momento"></textarea></label>
+        <label class="field"><span class="label">Cosa ha funzionato</span><textarea id="f-ok"></textarea></label>
+        <label class="field"><span class="label">Una cosa da fare diversamente la prossima volta</span><textarea id="f-next"></textarea></label>
+      </div>
+
+      <button type="submit" class="btn primary form-save" id="b-save">Salva partita</button>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+window.toast=(function(){
+  let t;
+  return msg=>{const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");clearTimeout(t);t=setTimeout(()=>el.classList.remove("show"),2400)};
+})();
+</script>
+<script>
+window.gameTool=(function(){
+  let games=[], pendingW=null, curSet=1, autoRis=false;
+  const q=id=>document.getElementById(id);
+  const lab=s=>s==="V"?"Ad":s;
+  function bySet(list){const m=new Map();(list||[]).forEach(g=>{if(!m.has(g.set))m.set(g.set,[]);m.get(g.set).push(g)});return m}
+  function score(list){return [...bySet(list).values()].map(a=>a.filter(g=>g.w).length+"-"+a.filter(g=>!g.w).length).join(" ")}
+  function strip(list){
+    if(!list||!list.length)return "";
+    const m=bySet(list),multi=m.size>1;
+    let h='<div class="gs">';
+    m.forEach((a,s)=>{h+='<div class="gs-row">'+(multi?'<span class="gs-set">Set '+s+'</span>':'')+a.map(g=>'<span class="g '+(g.w?'w':'l')+'" title="'+(g.w?'Vinto':'Perso')+' '+(g.s==="V"?'ai vantaggi':'a '+g.s)+'">'+lab(g.s)+'</span>').join("")+'</div>'});
+    const vw=list.filter(g=>g.s==="V"&&g.w).length, vl=list.filter(g=>g.s==="V"&&!g.w).length;
+    if(vw||vl)h+='<div class="gs-note">Game ai vantaggi: '+vw+' vinti, '+vl+' persi</div>';
+    return h+'</div>';
+  }
+  function draw(){
+    if(!q("gt-score"))return;
+    q("gt-score").textContent=games.length?score(games)+(bySet(games).size>1||curSet>1?"  ·  set "+curSet:""):"Nessun game";
+    q("gt-strip").innerHTML=strip(games);
+    q("gt-step1").hidden=pendingW!==null; q("gt-step2").hidden=pendingW===null;
+    if(pendingW!==null)q("gt-q").textContent=(pendingW?"Vinto":"Perso")+": com'è finito?";
+    const r=q("f-ris"); if(r&&(autoRis||!r.value.trim())&&games.length){r.value=score(games);autoRis=true}
+  }
+  function init(){
+    if(!q("gamebox"))return;
+    q("gt-step1").addEventListener("click",e=>{const b=e.target.closest("button[data-w]");if(!b)return;pendingW=b.dataset.w==="1";draw()});
+    q("gt-step2").addEventListener("click",e=>{const b=e.target.closest("button[data-s]");if(!b)return;games.push({set:curSet,w:pendingW,s:b.dataset.s});pendingW=null;draw()});
+    q("gt-undo").addEventListener("click",()=>{if(pendingW!==null){pendingW=null}else{games.pop();if(games.length)curSet=games[games.length-1].set}draw()});
+    q("gt-set").addEventListener("click",()=>{if(games.some(g=>g.set===curSet)){curSet++;pendingW=null;draw()}});
+    q("f-ris").addEventListener("input",()=>{autoRis=false});
+    draw();
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+  return {
+    get:()=>games.map(g=>({...g})),
+    set:list=>{games=(list||[]).map(g=>({...g}));curSet=games.length?games[games.length-1].set:1;pendingW=null;autoRis=false;draw()},
+    reset:()=>{games=[];curSet=1;pendingW=null;autoRis=false;draw()},
+    strip
+  };
+})();
+</script>
+<script>
+// Foglio a tutto schermo: si apre con una voce nella cronologia, così il "indietro"
+// di Android (o lo swipe) lo chiude invece di uscire dall'app.
+window.sheet=(function(){
+  const el=document.getElementById("sheet"), root=document.documentElement;
+  const isOpen=()=>el.classList.contains("open");
+  function open(){
+    if(isOpen())return;
+    el.inert=false;el.classList.add("open");root.classList.add("locked");
+    document.getElementById("sheet-body").scrollTop=0;
+    history.pushState({sheet:1},"");
+  }
+  function close(fromPop){
+    if(!isOpen())return;
+    el.classList.remove("open");el.inert=true;root.classList.remove("locked");
+    if(!fromPop&&history.state&&history.state.sheet)history.back();
+  }
+  addEventListener("popstate",()=>close(true));
+  addEventListener("keydown",e=>{if(e.key==="Escape")close()});
+  return {open,close};
+})();
+</script>
+<script>
+(function(){
+  const KEY="diario-partite-v1";
+  const $=id=>document.getElementById(id);
+  let entries=[], editingId=null, pendingDelete=null;
+  const openIds=new Set();
+  const SEED={id:"2026-11-02-pallettaro",e:{data:"2026-11-02",avversario:"Pallettaro (palle lente e corte)",tipo:"Campionato GameSet",risultato:"1-9",esito:"persa",frustrazione:8,felicita:3,calma:3,piano:"no",pianoTesto:"Nessun piano preciso, molta indecisione. Col senno di poi: non regalare ritmo all'avversario, caricare io la palla con margine sopra la rete, e sulle palle corte avanzare e chiudere a rete (la rete ha funzionato).",pianoSeguito:"",puntiDecisivi:"Nervi sui punti importanti: ho perso più game dopo essere stato 40-qualcosa. Indeciso su cosa fare con la palla lenta.",momentoChiave:"I game persi da 40: lì la partita è scappata via.",funzionato:"Gioco a rete. Servizio in crescita, soprattutto lo slice.",prossimaVolta:"Contro palle lente: piedi attivi, colpo con margine (alto sopra la rete, non piatto). Sui punti importanti scegliere prima del punto cosa fare e respirare. (Valori 1-10 stimati da Claude: correggili tu.)"}};
+
+  function warn(msg){$("list-status").textContent=msg;$("list-status").hidden=false}
+  function load(){
+    try{const raw=localStorage.getItem(KEY); if(raw===null){entries=[SEED];save();} else entries=JSON.parse(raw)||[];}
+    catch(_){entries=[SEED];warn("Questo browser non permette di salvare: usa l'export per non perdere i dati.");}
+    sort();
+  }
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(entries))}catch(_){warn("Salvataggio sul telefono non riuscito: esporta un backup.")}}
+  function sort(){entries.sort((a,b)=>(b.e.data||"").localeCompare(a.e.data||""))}
+  function newId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+
+  ["frus","felic","calma"].forEach(k=>{const r=$("f-"+k),o=$("o-"+k);r.addEventListener("input",()=>{o.textContent=r.value})});
+  const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
+  $("f-data").value=today();
+
+  function radio(n){const el=document.querySelector('input[name="'+n+'"]:checked');return el?el.value:""}
+  function setRadio(n,v){document.querySelectorAll('input[name="'+n+'"]').forEach(el=>{el.checked=(el.value===v)})}
+  function esc(s){const d=document.createElement("div");d.textContent=s==null?"":String(s);return d.innerHTML}
+  function fmtDate(iso){if(!iso)return"";const [y,m,d]=iso.split("-");const mesi=["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];return (+d)+" "+mesi[+m-1]+" "+y}
+  function resetForm(){$("f").reset();editingId=null;$("f-data").value=today();["frus","felic","calma"].forEach(k=>{$("o-"+k).textContent="5"});gameTool.reset();$("form-title").textContent="Nuova partita";$("b-save").textContent="Salva partita"}
+  function readForm(){return{data:$("f-data").value,avversario:$("f-avv").value.trim(),tipo:$("f-tipo").value,risultato:$("f-ris").value.trim(),esito:radio("esito"),frustrazione:+$("f-frus").value,felicita:+$("f-felic").value,calma:+$("f-calma").value,piano:radio("piano"),pianoTesto:$("f-pianotxt").value.trim(),pianoSeguito:radio("seguito"),puntiDecisivi:$("f-punti").value.trim(),momentoChiave:$("f-momento").value.trim(),funzionato:$("f-ok").value.trim(),prossimaVolta:$("f-next").value.trim(),games:gameTool.get()}}
+  function fillForm(e){$("f-data").value=e.data||"";$("f-avv").value=e.avversario||"";$("f-tipo").value=e.tipo||"Campionato GameSet";$("f-ris").value=e.risultato||"";setRadio("esito",e.esito||"");[["frus","frustrazione"],["felic","felicita"],["calma","calma"]].forEach(([k,f])=>{$("f-"+k).value=e[f]||5;$("o-"+k).textContent=e[f]||5});setRadio("piano",e.piano||"");$("f-pianotxt").value=e.pianoTesto||"";setRadio("seguito",e.pianoSeguito||"");$("f-punti").value=e.puntiDecisivi||"";$("f-momento").value=e.momentoChiave||"";$("f-ok").value=e.funzionato||"";$("f-next").value=e.prossimaVolta||"";gameTool.set(e.games||[])}
+  function meter(l,v,c){return '<div class="meter"><div class="label">'+l+'</div><b>'+esc(v)+'</b><div class="bar"><i style="width:'+(v*10)+'%;background:var('+c+')"></i></div></div>'}
+  function field(l,v){return v?'<div><dt>'+l+'</dt><dd>'+esc(v)+'</dd></div>':""}
+  const chev='<svg class="chev"><use href="#i-chev"/></svg>';
+  function render(){
+    const n=entries.length;$("s-n").textContent=n;
+    const avg=k=>n?(entries.reduce((a,x)=>a+(+x.e[k]||0),0)/n).toFixed(1).replace(".",","):"–";
+    $("s-frus").textContent=avg("frustrazione");$("s-calma").textContent=avg("calma");
+    $("s-piano").textContent=n?entries.filter(x=>x.e.piano==="si").length+"/"+n:"–";
+    $("list-count").textContent=n?(n===1?"1 partita":n+" partite"):"";
+    if(!n){$("list").innerHTML='<div class="empty">Ancora nessuna partita.<br>Tocca <b>Nuova partita</b> per iniziare.</div>';return}
+    $("list").innerHTML=entries.map(({id,e})=>{
+      const badge=e.esito==="vinta"?'<span class="badge w">V</span>':e.esito==="persa"?'<span class="badge l">P</span>':'<span class="badge">–</span>';
+      const esito=e.esito==="vinta"?'<span class="pill w">Vinta</span>':e.esito==="persa"?'<span class="pill l">Persa</span>':"";
+      const piano=e.piano==="si"?'<span class="pill p">Piano: sì'+(e.pianoSeguito?' · seguito '+esc(e.pianoSeguito):'')+'</span>':e.piano==="no"?'<span class="pill">Nessun piano</span>':"";
+      const del=pendingDelete===id?'<span class="confirm">Eliminare questa partita? <button type="button" class="btn danger" data-act="del-yes" data-id="'+id+'">Elimina</button><button type="button" class="btn" data-act="del-no">No</button></span>':'<button type="button" class="btn danger" data-act="del" data-id="'+id+'">Elimina</button>';
+      return '<details class="entry" data-id="'+id+'"'+(openIds.has(id)?' open':'')+'><summary>'+badge+'<span class="who"><b>'+esc(e.avversario||"Avversario")+'</b><span>'+esc(fmtDate(e.data))+' · '+esc(e.tipo)+'</span></span><span class="res">'+esc(e.risultato)+'</span>'+chev+'</summary>'
+        +'<div class="entry-body"><div class="pills">'+esito+piano+'</div><div class="meters">'+meter("Frustrazione",e.frustrazione,"--frus")+meter("Felicità",e.felicita,"--happy")+meter("Calma",e.calma,"--calm")+'</div>'+gameTool.strip(e.games)+'<dl>'+field("Piano",e.pianoTesto)+field("Punti decisivi",e.puntiDecisivi)+field("Momento chiave",e.momentoChiave)+field("Cosa ha funzionato",e.funzionato)+field("La prossima volta",e.prossimaVolta)+'</dl><div class="entry-actions"><button type="button" class="btn" data-act="edit" data-id="'+id+'">Modifica</button>'+del+'</div></div></details>';
+    }).join("");
+  }
+  $("list").addEventListener("toggle",ev=>{const d=ev.target;if(!d.dataset||!d.dataset.id)return;if(d.open)openIds.add(d.dataset.id);else openIds.delete(d.dataset.id)},true);
+  $("list").addEventListener("click",ev=>{
+    const b=ev.target.closest("button[data-act]");if(!b)return;const act=b.dataset.act,id=b.dataset.id;
+    if(act==="edit"){const it=entries.find(x=>x.id===id);if(!it)return;editingId=id;fillForm(it.e);$("form-title").textContent="Modifica partita";$("b-save").textContent="Salva modifiche";sheet.open()}
+    if(act==="del"){pendingDelete=id;render()}
+    if(act==="del-no"){pendingDelete=null;render()}
+    if(act==="del-yes"){pendingDelete=null;openIds.delete(id);entries=entries.filter(x=>x.id!==id);save();render();toast("Partita eliminata")}
+  });
+  // "Nuova partita" riprende la bozza se il foglio era stato chiuso con lo swipe/indietro;
+  // "Annulla" invece la scarta.
+  $("b-new").addEventListener("click",()=>{if(editingId)resetForm();sheet.open()});
+  $("b-cancel").addEventListener("click",()=>{resetForm();sheet.close()});
+  $("f").addEventListener("submit",ev=>{
+    ev.preventDefault();const e=readForm();
+    if(!e.data){toast("Inserisci la data della partita");return}
+    e.aggiornato=new Date().toISOString();
+    const wasEdit=!!editingId;
+    if(editingId){const it=entries.find(x=>x.id===editingId);if(it)it.e=e}else{const id=newId();entries.push({id,e});openIds.add(id)}
+    sort();save();render();resetForm();sheet.close();
+    toast(wasEdit?"Modifiche salvate":"Partita salvata");
+    window.scrollTo({top:0,behavior:"smooth"});
+  });
+  $("b-export").addEventListener("click",async()=>{
+    const json=JSON.stringify({app:"diario-partite",versione:1,esportato:new Date().toISOString(),partite:entries},null,2);
+    const name="diario-partite-"+today()+".json";
+    try{
+      const file=new File([json],name,{type:"application/json"});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"Backup diario partite"});toast("Backup condiviso");return}
+    }catch(err){if(err&&err.name==="AbortError")return}
+    try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([json],{type:"application/json"}));a.download=name;document.body.appendChild(a);a.click();a.remove();toast("Backup scaricato: "+name)}
+    catch(_){toast("Export non riuscito su questo browser")}
+  });
+  $("b-import").addEventListener("click",()=>$("f-importfile").click());
+  $("f-importfile").addEventListener("change",async ev=>{
+    const f=ev.target.files[0];if(!f)return;
+    try{const d=JSON.parse(await f.text());const list=Array.isArray(d)?d:d.partite;if(!Array.isArray(list))throw 0;
+      let added=0;list.forEach(x=>{if(x&&x.id&&x.e){const i=entries.findIndex(y=>y.id===x.id);if(i>=0)entries[i]=x;else{entries.push(x);added++}}});
+      sort();save();render();toast("Importate "+list.length+" partite ("+added+" nuove)")}
+    catch(_){toast("Questo file non è un backup del diario")}
+    ev.target.value="";
+  });
+  load();render();
+})();
+</script>
+<script>
+// Tab bar + barra in alto che diventa piena quando l'hero esce dallo schermo.
+(function(){
+  const tabs=document.querySelectorAll(".tabbar button"), bar=document.getElementById("appbar"), fab=document.getElementById("b-new");
+  const scrollPos={};
+  let current=null;
+  function onScroll(){
+    const hero=current&&document.querySelector("#v-"+current+" .hero");
+    const limit=hero?hero.offsetHeight-bar.offsetHeight-20:0;
+    bar.classList.toggle("solid",window.scrollY>limit);
+  }
+  function show(v){
+    if(current)scrollPos[current]=window.scrollY;
+    tabs.forEach(b=>{const on=b.dataset.v===v;b.setAttribute("aria-selected",on);document.getElementById("v-"+b.dataset.v).hidden=!on});
+    current=v;
+    document.getElementById("appbar-title").textContent=document.getElementById("v-"+v).dataset.title;
+    fab.hidden=v!=="diario";
+    window.scrollTo({top:scrollPos[v]||0});
+    onScroll();
+    try{localStorage.setItem("diario-tab",v)}catch(_){}
+  }
+  tabs.forEach(b=>b.addEventListener("click",()=>{
+    if(b.dataset.v===current)window.scrollTo({top:0,behavior:"smooth"});else show(b.dataset.v);
+  }));
+  addEventListener("scroll",onScroll,{passive:true});
+  addEventListener("resize",onScroll);
+  let v="diario";try{v=localStorage.getItem("diario-tab")||"diario"}catch(_){}
+  show(["diario","tips","altro"].includes(v)?v:"diario");
+})();
+</script>
+
+<script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("service-worker.js").catch(()=>{}))}</script>
+</body>
+</html>
