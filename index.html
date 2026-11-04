@@ -233,6 +233,15 @@ input[type=range]{width:100%;height:32px;margin:0}
 .gt-tools{display:flex;gap:8px}
 .gt-tools .btn{flex:1;min-height:38px;padding:6px 10px;font-size:.9rem}
 
+/* ---------- Invito a installare ---------- */
+.install{display:flex;align-items:center;gap:12px;background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 8px 12px 12px}
+.install img{flex:none;border-radius:11px}
+.install .tx{flex:1;min-width:0;display:flex;flex-direction:column;font-size:.85rem;color:var(--muted)}
+.install .tx b{color:var(--ink);font-size:.98rem}
+.install .share{display:inline-block;width:15px;height:15px;vertical-align:-2px;color:var(--court)}
+.install .btn{flex:none;min-height:38px;padding:8px 14px}
+.install .x{flex:none;border:0;background:none;color:var(--muted);width:32px;height:32px;font-size:.9rem}
+
 /* ---------- Toast ---------- */
 .toast{position:fixed;left:50%;z-index:60;bottom:calc(var(--tab-h) + var(--safe-bottom) + 80px);transform:translate(-50%,12px);opacity:0;pointer-events:none;
   background:var(--court-deep);color:#fff;padding:11px 18px;border-radius:999px;font-size:.92rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:calc(100% - 32px);text-align:center;transition:opacity .2s ease,transform .2s ease}
@@ -266,6 +275,12 @@ html.locked .toast{bottom:calc(var(--safe-bottom) + 24px)}
     </div>
   </header>
   <div class="content">
+    <div class="install" id="install" hidden>
+      <img src="icons/apple-touch-icon.png" alt="" width="44" height="44">
+      <div class="tx"><b>Installa Tennis Coach</b><span id="install-txt"></span></div>
+      <button type="button" class="btn primary" id="install-go" hidden>Installa</button>
+      <button type="button" class="x" id="install-x" aria-label="Chiudi">✕</button>
+    </div>
     <p class="banner" id="list-status" role="status" hidden></p>
     <div class="section-h"><h2>Partite</h2><small id="list-count"></small></div>
     <div class="list" id="list"></div>
@@ -369,7 +384,7 @@ html.locked .toast{bottom:calc(var(--safe-bottom) + 24px)}
 
     <div class="section-h"><h2>Installa sul telefono</h2></div>
     <p class="note"><b>iPhone:</b> apri in Safari, tocca Condividi e poi <i>Aggiungi alla schermata Home</i>.<br><b>Android:</b> apri in Chrome, menu ⋮ e poi <i>Installa app</i>. Funziona anche offline.</p>
-    <p class="version">Tennis Coach · v1</p>
+    <p class="version">Tennis Coach · v2</p>
   </div>
 </section>
 </main>
@@ -664,6 +679,33 @@ window.sheet=(function(){
 })();
 </script>
 
+<script>
+// iPhone non ha un prompt di installazione: si spiega il passaggio da Condividi.
+// Android/Chrome sì: si intercetta beforeinstallprompt e lo si apre dal pulsante.
+(function(){
+  const $=id=>document.getElementById(id), box=$("install");
+  const installed=matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+  let dismissed=false;try{dismissed=localStorage.getItem("install-dismissed")==="1"}catch(_){}
+  if(installed||dismissed)return;
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+  let deferred=null;
+  if(ios){
+    $("install-txt").innerHTML='Tocca <svg class="share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg> Condividi, poi <b>Aggiungi alla schermata Home</b>';
+    box.hidden=false;
+  }
+  addEventListener("beforeinstallprompt",e=>{
+    e.preventDefault();deferred=e;
+    $("install-txt").textContent="Aprila dalla schermata Home, anche offline.";
+    $("install-go").hidden=false;box.hidden=false;
+  });
+  $("install-go").addEventListener("click",async()=>{
+    if(!deferred)return;deferred.prompt();
+    const r=await deferred.userChoice;deferred=null;if(r.outcome==="accepted")box.hidden=true;
+  });
+  $("install-x").addEventListener("click",()=>{box.hidden=true;try{localStorage.setItem("install-dismissed","1")}catch(_){}});
+  addEventListener("appinstalled",()=>{box.hidden=true});
+})();
+</script>
 <script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("service-worker.js").catch(()=>{}))}</script>
 </body>
 </html>
